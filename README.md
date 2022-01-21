@@ -12,12 +12,14 @@ __Services/Users.swift__
 ```
 import Foundation
 
+// Define your user model
 struct User: FeathersServiceModel {
+    // Reference to the related service
     var service: FeathersService? = Users()
-    var _id: String?
     var data: NSMutableDictionary? = [
         "email": "",
-        "migrated": false
+        "firstName": "",
+        "lastName": ""
     ]
 }
 

@@ -16,6 +16,9 @@ protocol FeathersServiceModel {
 }
 
 extension FeathersServiceModel {
+    var id: String? {
+        return nil
+    }
     mutating func populateModel (json: [String: Any]) {
         for (key, val) in json {
             self.set(key: key, val: val)
