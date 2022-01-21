@@ -143,7 +143,6 @@ __Note:__ After a successful auth your access token will be stored in memory and
 
 
 ### Final Notes
-This is a very early intro built out of necessity so look forward to more development
-Please contribute to help improve this library
+This is a very early intro built out of necessity... so look out for more developments. Please contribute to help improve this library
 
-PR's will be promptly reviewd!
+PR's will be promptly reviewed!
