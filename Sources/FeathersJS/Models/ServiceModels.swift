@@ -2,9 +2,10 @@ import Foundation
 import UIKit
 
 public protocol FeathersServiceModel {
-    var service: FeathersService? { get }
     var _id: String? { get set }
     var data: NSMutableDictionary? { get set }
+    
+    func getService () -> FeathersService
     
     mutating func populateModel (json: [String: Any])
     mutating func setId (json: [String: Any])
@@ -17,9 +18,6 @@ public protocol FeathersServiceModel {
 }
 
 public extension FeathersServiceModel {
-    var id: String? {
-        return nil
-    }
     mutating func populateModel (json: [String: Any]) {
         for (key, val) in json {
             self.set(key: key, val: val)
@@ -49,7 +47,7 @@ public extension FeathersServiceModel {
     }
     
     func save (params: NSDictionary? = nil, complete: @escaping (FeathersServiceModel) -> (), incomplete: @escaping (Error) -> ()) {
-        self.service!.patch(
+        self.getService().patch(
             id: self._id!,
             data: try! self.get() as! NSDictionary,
             params: params,
@@ -59,7 +57,7 @@ public extension FeathersServiceModel {
     }
     
     func remove (params: NSDictionary? = nil, complete: @escaping () -> (), incomplete: @escaping (Error) -> ()) {
-        self.service!.remove(
+        self.getService().remove(
             id: self._id!,
             params: params,
             complete: complete,
@@ -69,10 +67,12 @@ public extension FeathersServiceModel {
 }
 
 struct FeathersDefaultServiceModel: FeathersServiceModel {
-    var service: FeathersService? = nil
-    
     var _id: String? = nil
-    var data: NSMutableDictionary? = [:]
+    public var data: NSMutableDictionary? = [:]
+    
+    func getService() -> FeathersService {
+        return FeathersDefaultService()
+    }
 }
 
 public struct FeathersAPI {
@@ -94,19 +94,19 @@ public struct FeathersLocalAuthConfig {
 }
 
 public struct FeathersAuthResponse {
-    var _id: String?
-    var data: NSMutableDictionary? = [
+    public var _id: String?
+    public var data: NSMutableDictionary? = [
         "accessToken": "",
         "authentication": [:],
         "user": [:]
     ]
+    
+    public func getService() -> FeathersService {
+        return FeathersDefaultService()
+    }
 }
 
-public extension FeathersAuthResponse: FeathersServiceModel {
-    var service: FeathersService? {
-        return nil
-    }
-    
+extension FeathersAuthResponse: FeathersServiceModel {
     init (json: [String: Any]) {
         self.data!["accessToken"] = json["accessToken"]
         self.data!["authentication"] = json["authentication"]
@@ -115,8 +115,8 @@ public extension FeathersAuthResponse: FeathersServiceModel {
 }
 
 public protocol FeathersService {
-    var endpoint: String { get set }
-    var model: FeathersServiceModel? { get }
+    var endpoint: String? { get set }
+    func getModel () -> FeathersServiceModel
     
     func find (params: NSDictionary?, complete: @escaping ([FeathersServiceModel])->(), incomplete: @escaping (Error) -> ())
     func get (id: String, params: NSDictionary?, complete: @escaping (FeathersServiceModel)->(), incomplete: @escaping (Error) -> ())
@@ -127,10 +127,6 @@ public protocol FeathersService {
 }
 
 public extension FeathersService {
-    var model: FeathersServiceModel? {
-        return nil
-    }
-    
     func find(
         params: NSDictionary? = nil,
         complete: @escaping ([FeathersServiceModel])->(),
@@ -141,7 +137,7 @@ public extension FeathersService {
             .getProvider()
             .build(
                 method: "GET",
-                service: self.endpoint,
+                service: self.endpoint!,
                 body: nil,
                 params: params,
                 complete: { (data, response) in
@@ -151,7 +147,7 @@ public extension FeathersService {
                         let data = json["data"] as! NSArray
                         data.forEach { item in
                             let item = item as! [String:Any]
-                            var model = self.model!
+                            var model = self.getModel()
                             model.setId(json: item)
                             model.populateModel(json: item)
                             items.add(model)
@@ -177,13 +173,13 @@ public extension FeathersService {
             .getProvider()
             .build(
                 method: "GET",
-                service: String(format:"%@/%@", self.endpoint, id),
+                service: String(format:"%@/%@", self.endpoint!, id),
                 body: nil,
                 params: nil,
                 complete: { (data, response) in
                     do {
                         let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.model!
+                        var model = self.getModel()
                             model.setId(json: json)
                             model.populateModel(json: json)
                         complete(model)
@@ -207,13 +203,13 @@ public extension FeathersService {
             .getProvider()
             .build(
                 method: "POST",
-                service: self.endpoint,
+                service: self.endpoint!,
                 body: data,
                 params: params,
                 complete: { (data, response) in
                     do {
                         let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.model!
+                        var model = self.getModel()
                             model.setId(json: json)
                             model.populateModel(json: json)
                         complete(model)
@@ -238,13 +234,13 @@ public extension FeathersService {
             .getProvider()
             .build(
                 method: "PUT",
-                service: String(format:"%@/%@", self.endpoint, id),
+                service: String(format:"%@/%@", self.endpoint!, id),
                 body: data,
                 params: params,
                 complete: { (data, response) in
                     do {
                         let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.model!
+                        var model = self.getModel()
                             model.setId(json: json)
                             model.populateModel(json: json)
                         complete(model)
@@ -269,13 +265,13 @@ public extension FeathersService {
             .getProvider()
             .build(
                 method: "PATCH",
-                service: String(format:"%@/%@", self.endpoint, id),
+                service: String(format:"%@/%@", self.endpoint!, id),
                 body: data,
                 params: params,
                 complete: { (data, response) in
                     do {
                         let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.model!
+                        var model = self.getModel()
                             model.setId(json: json)
                             model.populateModel(json: json)
                         complete(model)
@@ -299,13 +295,13 @@ public extension FeathersService {
             .getProvider()
             .build(
                 method: "DELETE",
-                service: String(format:"%@/%@", self.endpoint, id),
+                service: String(format:"%@/%@", self.endpoint!, id),
                 body: nil,
                 params: params,
                 complete: { (data, response) in
                     do {
                         let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.model!
+                        var model = self.getModel()
                             model.setId(json: json)
                             model.populateModel(json: json)
                         complete()
@@ -320,6 +316,9 @@ public extension FeathersService {
 }
 
 struct FeathersDefaultService: FeathersService {
-    var endpoint: String
-    var model: FeathersServiceModel? = FeathersDefaultServiceModel()
+    var endpoint: String?
+    
+    func getModel() -> FeathersServiceModel {
+        return FeathersDefaultServiceModel()
+    }
 }

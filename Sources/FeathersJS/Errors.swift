@@ -14,3 +14,7 @@ enum FeathersJsonError: Error {
 enum FeathersServiceModelError: Error {
     case invalidKey
 }
+
+enum FeathersRestError: Error {
+    case unclassified(message: String)
+}

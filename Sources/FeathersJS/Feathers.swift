@@ -2,12 +2,12 @@ import Foundation
 
 public class Feathers {
     
-    public var provider: FeathersProvider = FeathersRestProvider.shared
+    var provider: FeathersProvider = FeathersRestProvider.shared
     public static let shared: Feathers = Feathers()
     
     public init () { return }
     
-    public func setProvider (provider: FeathersProvider) {
+    func setProvider (provider: FeathersProvider) {
         self.provider = provider
     }
     
@@ -21,7 +21,7 @@ public class Feathers {
         }
     }
     
-    public func getProvider () -> FeathersProvider {
+    func getProvider () -> FeathersProvider {
         return self.provider
     }
     

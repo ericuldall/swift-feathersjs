@@ -27,14 +27,14 @@ public extension URL {
 public class FeathersRestProvider {
     private var jwt: JWT? = nil
     private var accessToken: String = ""
-    private var api: FeathersAPI = FeathersAPI()
+    private var api: FeathersAPI = FeathersAPI(baseUrl: nil)
     
     public static let shared: FeathersRestProvider = FeathersRestProvider()
 
     public init () { return }
 }
 
-public extension FeathersRestProvider: FeathersProvider {
+extension FeathersRestProvider: FeathersProvider {
     func isAuthenticated() -> Bool {
         if (self.accessToken.count > 0) {
             do {
@@ -69,7 +69,6 @@ public extension FeathersRestProvider: FeathersProvider {
             }
         }
         let url = URL(string: service, relativeTo: self.api.baseUrl, parameters: qs)!
-        print(url)
         var request = URLRequest(url: url)
         request.httpMethod = method
         if (body != nil) {
@@ -82,26 +81,22 @@ public extension FeathersRestProvider: FeathersProvider {
     }
     
     
-    public func authenticateLocal (email: String, password: String, complete: @escaping (Bool) throws -> ()) {
+    public func authenticateLocal (email: String, password: String, complete: @escaping (Bool) -> ()) {
         let body: NSDictionary = [
             "strategy" : "local",
             "email": email,
             "password": password
         ]
         self.build(method: "POST", service: "/authentication", body: body, complete: { (data, response) in
-            do {
-                let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                self.accessToken = json["accessToken"] as! String
-                if (!self.isAuthenticated()) {
-                    try? complete(false);
-                } else {
-                    try? complete(true);
-                }
-            } catch {
-                throw error
+            let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
+            self.accessToken = json["accessToken"] as? String ?? ""
+            if (!self.isAuthenticated()) {
+                complete(false);
+            } else {
+                complete(true);
             }
         }, incomplete: { error in
-            try? complete(false)
+            complete(false)
         })
     }
     
@@ -122,7 +117,7 @@ public extension FeathersRestProvider: FeathersProvider {
                         try incomplete(error)
                     }
                 } else {
-                    print("Some other error")
+                    try incomplete(FeathersRestError.unclassified(message: "An unexpected error occured when trying to access data from the HTTP Request"))
                 }
             } catch {
                 try? incomplete(error)
