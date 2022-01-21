@@ -7,6 +7,28 @@ Use xcode package manager and point to this github repo :D
 
 ## Getting started in code
 
+*Configure your API:*
+__my_appApp.swift__
+```
+import SwiftUI
+import FeathersJS
+
+@main
+struct my_appApp: App {
+    init () {
+        let feathers = Feathers.shared
+        feathers.setApi(api: FeathersAPI(baseUrl: URL(string: "https://myfeathersapi.com")!))
+    }
+    
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}
+
+```
+
 *Create your service:*
 __Services/Users.swift__
 ```
@@ -20,11 +42,7 @@ import FeathersJS
  * This will hold the response data for an individual entity
  *
  */
-struct User: FeathersServiceModel {
-
-    // Reference to the related service
-    var service: FeathersService? = Users()
-    
+struct User: FeathersServiceModel {    
     // Data model defaults, any member of this dict
     // will be stored if returned from the api call
     var data: NSMutableDictionary? = [
@@ -32,6 +50,11 @@ struct User: FeathersServiceModel {
         "firstName": "",
         "lastName": ""
     ]
+    
+    // Getter for the Service
+    func getService () -> FeathersService {
+        return Users()
+    }
 }
 
 /**
@@ -42,14 +65,18 @@ struct User: FeathersServiceModel {
  * with the feathers api and get access to models
  *
  */
-struct Users: FeathersService {    
+struct Users: FeathersService {  
+    // sets the http endpoint for the model
     var endpoint: String = "/users"
-    var model: FeathersServiceModel? = User()
+    
+    // Getter for the model
+    func getModel () -> FeathersServiceModel {
+        return User()
+    }
 }
 ```
 
 *Call your service:*
-__Main.swift__
 ```
     Users().find(
         complete: { models in // we end up here if everything went good :D
@@ -82,7 +109,22 @@ __Main.swift__
     )
 ```
 
-That's the basics!
+*Authenticate*
+__Currently only have local auth implemented__
+```
+Feathers.shared.authenticate(
+    type: "local",
+    data: FeathersLocalAuthConfig(
+        email: email,
+        password: password
+    ),
+    complete: { success in
+        print(success) // return a Bool to tell you if auth was successful or not
+    }
+)
+```
+__Note:__ After a successful auth your access token will be stored in memory and automatically passed to all future calls
+
 
 ## Component Details
 
@@ -98,3 +140,10 @@ That's the basics!
 | FeathersServiceModel | get | get (key: String?) **throws** -> **Any** | If :key is passed, return key or `throw FeathersServiceModelError.invalidKey` if it doesn't exist. If `key` is **nil** return `self.data`
 | FeathersServiceModel | save | save (params: NSDictionary?, complete: **@escaping** (FeathersServiceModel) -> (), incomplete: **@escaping** (Error) -> ()) | Call `self.service.patch(id: self._id!, data: self.get(), params: params, complete: complete, incomplete: incomplete)`
 | FeathersServiceModel | remove | remove (params: NSDictionary?, complete: **@escaping** () -> (), incomplete: **@escaping** (Error) -> ()) | Call `self.service.remove(id: self._id!, params: params, complete: complete, incomplete: incomplete)`
+
+
+### Final Notes
+This is a very early intro built out of necessity so look forward to more development
+Please contribute to help improve this library
+
+PR's will be promptly reviewd!
