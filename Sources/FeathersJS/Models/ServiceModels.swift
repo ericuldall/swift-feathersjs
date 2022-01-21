@@ -1,6 +1,7 @@
 import Foundation
+import UIKit
 
-protocol FeathersServiceModel {
+public protocol FeathersServiceModel {
     var service: FeathersService? { get }
     var _id: String? { get set }
     var data: NSMutableDictionary? { get set }
@@ -15,7 +16,7 @@ protocol FeathersServiceModel {
     func remove (params: NSDictionary?, complete: @escaping () -> (), incomplete: @escaping (Error) -> ())
 }
 
-extension FeathersServiceModel {
+public extension FeathersServiceModel {
     var id: String? {
         return nil
     }
@@ -74,17 +75,25 @@ struct FeathersDefaultServiceModel: FeathersServiceModel {
     var data: NSMutableDictionary? = [:]
 }
 
-struct FeathersAPI {
+public struct FeathersAPI {
     var baseUrl: URL?
-    var services: Array<String>?
+    
+    public init (baseUrl: URL?) {
+        self.baseUrl = baseUrl
+    }
 }
 
-struct FeathersLocalAuthConfig {
-    var email: String
-    var password: String
+public struct FeathersLocalAuthConfig {
+    public var email: String
+    public var password: String
+    
+    public init (email: String, password: String) {
+        self.email = email
+        self.password = password
+    }
 }
 
-struct FeathersAuthResponse {
+public struct FeathersAuthResponse {
     var _id: String?
     var data: NSMutableDictionary? = [
         "accessToken": "",
@@ -93,7 +102,7 @@ struct FeathersAuthResponse {
     ]
 }
 
-extension FeathersAuthResponse: FeathersServiceModel {
+public extension FeathersAuthResponse: FeathersServiceModel {
     var service: FeathersService? {
         return nil
     }
@@ -105,7 +114,7 @@ extension FeathersAuthResponse: FeathersServiceModel {
     }
 }
 
-protocol FeathersService {
+public protocol FeathersService {
     var endpoint: String { get set }
     var model: FeathersServiceModel? { get }
     
@@ -117,7 +126,7 @@ protocol FeathersService {
     func remove (id: String, params: NSDictionary?, complete: @escaping ()->(), incomplete: @escaping (Error) -> ())
 }
 
-extension FeathersService {
+public extension FeathersService {
     var model: FeathersServiceModel? {
         return nil
     }

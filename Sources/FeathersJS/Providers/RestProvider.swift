@@ -1,8 +1,7 @@
 import Foundation
 import JWTDecode
 
-extension URL
-{
+public extension URL {
     /// Creates an NSURL with url-encoded parameters.
     init?(string : String, relativeTo: URL?, parameters: [String : Any]? = nil)
     {
@@ -25,17 +24,17 @@ extension URL
     }
 }
 
-class FeathersRestProvider {
+public class FeathersRestProvider {
     private var jwt: JWT? = nil
     private var accessToken: String = ""
     private var api: FeathersAPI = FeathersAPI()
     
-    static let shared: FeathersRestProvider = FeathersRestProvider()
+    public static let shared: FeathersRestProvider = FeathersRestProvider()
 
-    init () { return }
+    public init () { return }
 }
 
-extension FeathersRestProvider: FeathersProvider {
+public extension FeathersRestProvider: FeathersProvider {
     func isAuthenticated() -> Bool {
         if (self.accessToken.count > 0) {
             do {
@@ -51,7 +50,7 @@ extension FeathersRestProvider: FeathersProvider {
         return false
     }
     
-    func setApi (api: FeathersAPI) {
+    public func setApi (api: FeathersAPI) {
         self.api = api
     }
     
@@ -83,7 +82,7 @@ extension FeathersRestProvider: FeathersProvider {
     }
     
     
-    func authenticateLocal (email: String, password: String, complete: @escaping (Bool) throws -> ()) {
+    public func authenticateLocal (email: String, password: String, complete: @escaping (Bool) throws -> ()) {
         let body: NSDictionary = [
             "strategy" : "local",
             "email": email,

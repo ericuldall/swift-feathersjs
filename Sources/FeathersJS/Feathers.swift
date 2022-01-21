@@ -1,27 +1,27 @@
 import Foundation
 
-class Feathers {
+public class Feathers {
     
-    private var provider: FeathersProvider = FeathersRestProvider.shared
-    static let shared: Feathers = Feathers()
+    public var provider: FeathersProvider = FeathersRestProvider.shared
+    public static let shared: Feathers = Feathers()
     
-    init () { return }
+    public init () { return }
     
-    func setProvider (provider: FeathersProvider) {
+    public func setProvider (provider: FeathersProvider) {
         self.provider = provider
     }
     
-    func setApi (api: FeathersAPI) {
+    public func setApi (api: FeathersAPI) {
         self.provider.setApi(api: api)
     }
     
-    func authenticate (type: String = "local", data: FeathersLocalAuthConfig, complete: @escaping (Bool) -> ()) {
+    public func authenticate (type: String = "local", data: FeathersLocalAuthConfig, complete: @escaping (Bool) -> ()) {
         if (type == "local") {
             self.provider.authenticateLocal(email: data.email, password: data.password, complete: complete)
         }
     }
     
-    func getProvider () -> FeathersProvider {
+    public func getProvider () -> FeathersProvider {
         return self.provider
     }
     
