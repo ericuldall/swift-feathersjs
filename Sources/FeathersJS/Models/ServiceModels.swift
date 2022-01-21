@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import Combine
 
 public protocol FeathersServiceModel {
     var _id: String? { get set }
