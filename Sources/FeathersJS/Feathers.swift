@@ -3,6 +3,11 @@ import Foundation
 public class Feathers {
     
     var provider: FeathersProvider = FeathersRestProvider.shared
+   
+    public var isAuthenticated: Bool {
+        return self.provider.isAuthenticated()
+    }
+    
     public static let shared: Feathers = Feathers()
     
     public init () { return }
@@ -25,6 +30,13 @@ public class Feathers {
         }
         
         return false
+    }
+    
+    public func preAuth () -> Void {
+        if let data = KeychainHelper.standard.read(service: "authentication", account: "jwt") {
+            let accessToken = String(decoding: data, as: UTF8.self)
+            self.provider.accessToken = accessToken
+        }
     }
     
     func getProvider () -> FeathersProvider {

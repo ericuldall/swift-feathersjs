@@ -23,13 +23,19 @@ import FeathersJS
 @main
 struct my_appApp: App {
     init () {
-        let feathers = Feathers.shared
-        feathers.setApi(api: FeathersAPI(baseUrl: URL(string: "https://myfeathersapi.com")!))
+        let feathers = Feathers.shared // make reference to Feathers() singleton
+        feathers.setApi(api: FeathersAPI(baseUrl: URL(string: "https://myfeathersapi.com")!)) // configure api endpoint
+        feathers.preAuth() //load authentication data from keychain
     }
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            // You can condtionally show a different initial view based on your auth status
+            if (Feathers.shared.isAuthenticated) {
+                LoggedInContentView()
+            } else {
+                LoggedOutContentView()
+            }
         }
     }
 }
@@ -87,22 +93,23 @@ struct Users: FeathersService {
 ```
 Task {
     do {
-    let users = try await Users().find()
-    users.forEach { user in 
-        // inspect the User Model
-        print(user)
-        
-        // get only the data from the User Model
-        print(try user.get())
-        
-        // get only the email from the User Model
-        print(try user.get(key: "email"))
-        
-        // change the email in the User Model
-        user.set(key: "email", val: "test@test.com")
-        
-        // save the changes
-        _ = user.save() // you can also grab the model returend from the api here (let user = user.save())
+        let users = try await Users().find()
+        users.forEach { user in 
+            // inspect the User Model
+            print(user)
+            
+            // get only the data from the User Model
+            print(try user.get())
+            
+            // get only the email from the User Model
+            print(try user.get(key: "email"))
+            
+            // change the email in the User Model
+            user.set(key: "email", val: "test@test.com")
+            
+            // save the changes
+            _ = user.save() // you can also grab the model returend from the api here (let user = user.save())
+        }
     } catch {
         print(error)
     }
@@ -130,18 +137,23 @@ __Note:__ After a successful auth your access token will be stored in memory and
 
 ## Component Details
 
-| Component | Method | Protocol | Description |
+| Component | Method/Property | Protocol | Description |
 |--|--|--|--|
-| FeathersService | find | find (params: NSDictionary?) async throws -> [FeathersServiceModel] | Perform a GET request to `/:self.endpoint`
-| FeathersService | get | get (id: String, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a GET request to `/:self.endpoint/:id`
-| FeathersService | create | create (data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a POST request to `/:self.endpoint` with `data` in the request body
-| FeathersService | update | update (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a PUT request to `/:self.endpoint/:id` with `data` in the request body
-| FeathersService | patch | patch (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a PATCH request to `/:self.endpoint/:id` with `data` in the request body
-| FeathersService | remove | remove (id: String, params: NSDictionary?) async throws | Perform a DELETE request to `/:self.endpoint/:id`
-| FeathersServiceModel | set | set (key: String, val: **Any**) | Sets `self.data[key] = val`
-| FeathersServiceModel | get | get (key: String?) **throws** -> **Any** | If :key is passed, return key or `throw FeathersServiceModelError.invalidKey` if it doesn't exist. If `key` is **nil** return `self.data`
-| FeathersServiceModel | save | save (params: NSDictionary?) async throws -> FeathersServiceModel | Call `self.service.patch(id: self._id!, data: self.get(), params: params)`
-| FeathersServiceModel | remove | remove (params: NSDictionary?) async throws | Call `self.service.remove(id: self._id!, params: params)`
+| Feathers | shared | static let shared: Feathers | Singleton access of the Feathers class
+| Feathers | setApi | func setApi (api: FeathersAPI) | Initialize your api endpoint
+| Feathers | authenticate | func authenticate (strategy: String = "local", data: FeathersLocalAuthConfig) async -> Bool | Call authentication service w/ config
+| Feathers | preAuth | func preAuth () -> Void | Load Authentication from keychain if it exists
+| Feathers | isAuthenticated | var isAuthenticated: Bool | A computed property of current authentication status
+| FeathersService | find | func find (params: NSDictionary?) async throws -> [FeathersServiceModel] | Perform a GET request to `/:self.endpoint`
+| FeathersService | get | func get (id: String, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a GET request to `/:self.endpoint/:id`
+| FeathersService | create | func create (data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a POST request to `/:self.endpoint` with `data` in the request body
+| FeathersService | update | func update (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a PUT request to `/:self.endpoint/:id` with `data` in the request body
+| FeathersService | patch | func patch (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a PATCH request to `/:self.endpoint/:id` with `data` in the request body
+| FeathersService | remove | func remove (id: String, params: NSDictionary?) async throws | Perform a DELETE request to `/:self.endpoint/:id`
+| FeathersServiceModel | set | func set (key: String, val: **Any**) | Sets `self.data[key] = val`
+| FeathersServiceModel | get | func get (key: String?) **throws** -> **Any** | If :key is passed, return key or `throw FeathersServiceModelError.invalidKey` if it doesn't exist. If `key` is **nil** return `self.data`
+| FeathersServiceModel | save | func save (params: NSDictionary?) async throws -> FeathersServiceModel | Call `self.service.patch(id: self._id!, data: self.get(), params: params)`
+| FeathersServiceModel | remove | func remove (params: NSDictionary?) async throws | Call `self.service.remove(id: self._id!, params: params)`
 
 
 ### Final Notes
