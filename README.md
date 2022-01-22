@@ -1,4 +1,5 @@
 # FeathersJS
+![Platforms iOS(.v15)](https://img.shields.io/badge/platform-iOS15+-blue?style=for-the-badge)  ![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/ericuldall/swift-feathersjs?color=orange&label=VERSION&style=for-the-badge)
 
 A Lightweight Feathers.js client for iOS
 
