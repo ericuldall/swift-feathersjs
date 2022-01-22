@@ -93,22 +93,23 @@ struct Users: FeathersService {
 ```
 Task {
     do {
-    let users = try await Users().find()
-    users.forEach { user in 
-        // inspect the User Model
-        print(user)
-        
-        // get only the data from the User Model
-        print(try user.get())
-        
-        // get only the email from the User Model
-        print(try user.get(key: "email"))
-        
-        // change the email in the User Model
-        user.set(key: "email", val: "test@test.com")
-        
-        // save the changes
-        _ = user.save() // you can also grab the model returend from the api here (let user = user.save())
+        let users = try await Users().find()
+        users.forEach { user in 
+            // inspect the User Model
+            print(user)
+            
+            // get only the data from the User Model
+            print(try user.get())
+            
+            // get only the email from the User Model
+            print(try user.get(key: "email"))
+            
+            // change the email in the User Model
+            user.set(key: "email", val: "test@test.com")
+            
+            // save the changes
+            _ = user.save() // you can also grab the model returend from the api here (let user = user.save())
+        }
     } catch {
         print(error)
     }
