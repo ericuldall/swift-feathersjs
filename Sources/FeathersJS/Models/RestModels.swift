@@ -1,3 +1,7 @@
 import Foundation
 
-protocol FeathersRestResponse: Codable {}
+struct FeathersRestResponse {
+    var data: Data
+    var response: URLResponse
+}
+

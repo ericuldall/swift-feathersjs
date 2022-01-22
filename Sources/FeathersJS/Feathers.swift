@@ -15,10 +15,16 @@ public class Feathers {
         self.provider.setApi(api: api)
     }
     
-    public func authenticate (type: String = "local", data: FeathersLocalAuthConfig, complete: @escaping (Bool) -> ()) {
-        if (type == "local") {
-            self.provider.authenticateLocal(email: data.email, password: data.password, complete: complete)
+    public func authenticate (strategy: String = "local", data: FeathersLocalAuthConfig) async -> Bool {
+        if (strategy == "local") {
+            do {
+                return try await self.provider.authenticateLocal(email: data.email, password: data.password)
+            } catch {
+                return false
+            }
         }
+        
+        return false
     }
     
     func getProvider () -> FeathersProvider {
