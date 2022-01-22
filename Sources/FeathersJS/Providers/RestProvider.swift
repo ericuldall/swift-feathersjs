@@ -25,8 +25,9 @@ public extension URL {
 }
 
 public class FeathersRestProvider {
+    var accessToken: String = ""
+    
     private var jwt: JWT? = nil
-    private var accessToken: String = ""
     private var api: FeathersAPI = FeathersAPI(baseUrl: nil)
     
     public static let shared: FeathersRestProvider = FeathersRestProvider()
@@ -35,7 +36,7 @@ public class FeathersRestProvider {
 }
 
 extension FeathersRestProvider: FeathersProvider {
-    func isAuthenticated() -> Bool {
+    public func isAuthenticated() -> Bool {
         if (self.accessToken.count > 0) {
             do {
                 self.jwt = try decode(jwt: self.accessToken)
@@ -91,7 +92,9 @@ extension FeathersRestProvider: FeathersProvider {
             if (!self.isAuthenticated()) {
                     return false
             } else {
-                    return true
+                // store to keychain here
+                KeychainHelper.standard.save(Data(self.accessToken.utf8), service: "authentication", account: "jwt")
+                return true
             }
         } catch {
             return false
