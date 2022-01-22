@@ -2,6 +2,13 @@
 
 A Lightweight Feathers.js client for iOS
 
+## Support Notes
+This library is designed for the future and uses async/await to improve code readability
+That being said currently this is only tested and support for >= iOS(.v15)
+
+I'm open to acceepting PR's that provide fallback support to `completionHandlers` for other versions
+I will also accept PR's to improve support across other devices and provide a more robust experience for users that need it
+
 ## Installing
 Use xcode package manager and point to this github repo :D
 
@@ -78,50 +85,45 @@ struct Users: FeathersService {
 
 *Call your service:*
 ```
-    Users().find(
-        complete: { models in // we end up here if everything went good :D
-            models.forEach { user in 
-                // inspect the User Model
-                print(user)
-                
-                // get only the data from the User Model
-                print(user.get())
-                
-                // get only the email from the User Model
-                print(user.get(key: "email"))
-                
-                // change the email in the User Model
-                user.set(key: "email", val: "test@test.com")
-                // save the changes
-                user.save(
-                    complete: { user in
-                        // we have access to the updated model from the api here
-                    },
-                    incomplete: { error in
-                        print(error)
-                    }
-                )
-            }
-        },
-        incomplete: { error in // we end up here if something failed
-            print(error)
-        }
-    )
+Task {
+    do {
+    let users = try await Users().find()
+    users.forEach { user in 
+        // inspect the User Model
+        print(user)
+        
+        // get only the data from the User Model
+        print(try user.get())
+        
+        // get only the email from the User Model
+        print(try user.get(key: "email"))
+        
+        // change the email in the User Model
+        user.set(key: "email", val: "test@test.com")
+        
+        // save the changes
+        _ = user.save() // you can also grab the model returend from the api here (let user = user.save())
+    } catch {
+        print(error)
+    }
+}
 ```
 
 *Authenticate*
 __Currently only have local auth implemented__
 ```
-Feathers.shared.authenticate(
-    type: "local",
-    data: FeathersLocalAuthConfig(
-        email: email,
-        password: password
-    ),
-    complete: { success in
-        print(success) // return a Bool to tell you if auth was successful or not
-    }
-)
+@State private var email: String = ""
+@State private var password: String = ""
+
+Task {
+    let success = await Feathers.shared.authenticate(
+        strategy: "local",
+        data: FeathersLocalAuthConfig(
+            email: email,
+            password: password
+        )
+    )
+}
 ```
 __Note:__ After a successful auth your access token will be stored in memory and automatically passed to all future calls
 
@@ -130,16 +132,16 @@ __Note:__ After a successful auth your access token will be stored in memory and
 
 | Component | Method | Protocol | Description |
 |--|--|--|--|
-| FeathersService | find | find (params: NSDictionary?, complete: **@escaping** ([FeathersServiceModel])->(), incomplete: **@escaping** (Error) -> ()) | Perform a GET request to `/:self.endpoint`
-| FeathersService | get | get (id: String, params: NSDictionary?, complete: **@escaping** (FeathersServiceModel)->(), incomplete: **@escaping** (Error) -> ()) | Perform a GET request to `/:self.endpoint/:id`
-| FeathersService | create | create (data: NSDictionary, params: NSDictionary?, complete: **@escaping** (FeathersServiceModel)->(), incomplete: **@escaping** (Error) -> ()) | Perform a POST request to `/:self.endpoint` with `data` in the request body
-| FeathersService | update | update (id: String, data: NSDictionary, params: NSDictionary?, complete: **@escaping** (FeathersServiceModel)->(), incomplete: **@escaping** (Error) -> ()) | Perform a PUT request to `/:self.endpoint/:id` with `data` in the request body
-| FeathersService | patch | patch (id: String, data: NSDictionary, params: NSDictionary?, complete: **@escaping** (FeathersServiceModel)->(), incomplete: **@escaping** (Error) -> ()) | Perform a PATCH request to `/:self.endpoint/:id` with `data` in the request body
-| FeathersService | remove | remove (id: String, params: NSDictionary?, complete: **@escaping** ()->(), incomplete: **@escaping** (Error) -> ()) | Perform a DELETE request to `/:self.endpoint/:id`
+| FeathersService | find | find (params: NSDictionary?) async throws -> [FeathersServiceModel] | Perform a GET request to `/:self.endpoint`
+| FeathersService | get | get (id: String, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a GET request to `/:self.endpoint/:id`
+| FeathersService | create | create (data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a POST request to `/:self.endpoint` with `data` in the request body
+| FeathersService | update | update (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a PUT request to `/:self.endpoint/:id` with `data` in the request body
+| FeathersService | patch | patch (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel | Perform a PATCH request to `/:self.endpoint/:id` with `data` in the request body
+| FeathersService | remove | remove (id: String, params: NSDictionary?) async throws | Perform a DELETE request to `/:self.endpoint/:id`
 | FeathersServiceModel | set | set (key: String, val: **Any**) | Sets `self.data[key] = val`
 | FeathersServiceModel | get | get (key: String?) **throws** -> **Any** | If :key is passed, return key or `throw FeathersServiceModelError.invalidKey` if it doesn't exist. If `key` is **nil** return `self.data`
-| FeathersServiceModel | save | save (params: NSDictionary?, complete: **@escaping** (FeathersServiceModel) -> (), incomplete: **@escaping** (Error) -> ()) | Call `self.service.patch(id: self._id!, data: self.get(), params: params, complete: complete, incomplete: incomplete)`
-| FeathersServiceModel | remove | remove (params: NSDictionary?, complete: **@escaping** () -> (), incomplete: **@escaping** (Error) -> ()) | Call `self.service.remove(id: self._id!, params: params, complete: complete, incomplete: incomplete)`
+| FeathersServiceModel | save | save (params: NSDictionary?) async throws -> FeathersServiceModel | Call `self.service.patch(id: self._id!, data: self.get(), params: params)`
+| FeathersServiceModel | remove | remove (params: NSDictionary?) async throws | Call `self.service.remove(id: self._id!, params: params)`
 
 
 ### Final Notes

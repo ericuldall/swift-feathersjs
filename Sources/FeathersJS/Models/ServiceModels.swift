@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import Combine
 
 public protocol FeathersServiceModel {
     var _id: String? { get set }
@@ -13,8 +14,8 @@ public protocol FeathersServiceModel {
     func set (key: String, val: Any)
     func get (key: String?) throws -> Any
     
-    func save (params: NSDictionary?, complete: @escaping (FeathersServiceModel) -> (), incomplete: @escaping (Error) -> ())
-    func remove (params: NSDictionary?, complete: @escaping () -> (), incomplete: @escaping (Error) -> ())
+    func save (params: NSDictionary?) async throws -> FeathersServiceModel
+    func remove (params: NSDictionary?) async throws
 }
 
 public extension FeathersServiceModel {
@@ -46,22 +47,18 @@ public extension FeathersServiceModel {
         return self.data!
     }
     
-    func save (params: NSDictionary? = nil, complete: @escaping (FeathersServiceModel) -> (), incomplete: @escaping (Error) -> ()) {
-        self.getService().patch(
+    func save (params: NSDictionary? = nil) async throws -> FeathersServiceModel {
+        return try await self.getService().patch(
             id: self._id!,
             data: try! self.get() as! NSDictionary,
-            params: params,
-            complete: complete,
-            incomplete: incomplete
+            params: params
         )
     }
     
-    func remove (params: NSDictionary? = nil, complete: @escaping () -> (), incomplete: @escaping (Error) -> ()) {
-        self.getService().remove(
+    func remove (params: NSDictionary? = nil) async throws {
+        return try await self.getService().remove(
             id: self._id!,
-            params: params,
-            complete: complete,
-            incomplete: incomplete
+            params: params
         )
     }
 }
@@ -118,200 +115,88 @@ public protocol FeathersService {
     var endpoint: String? { get set }
     func getModel () -> FeathersServiceModel
     
-    func find (params: NSDictionary?, complete: @escaping ([FeathersServiceModel])->(), incomplete: @escaping (Error) -> ())
-    func get (id: String, params: NSDictionary?, complete: @escaping (FeathersServiceModel)->(), incomplete: @escaping (Error) -> ())
-    func create (data: NSDictionary, params: NSDictionary?, complete: @escaping (FeathersServiceModel)->(), incomplete: @escaping (Error) -> ())
-    func update (id: String, data: NSDictionary, params: NSDictionary?, complete: @escaping (FeathersServiceModel)->(), incomplete: @escaping (Error) -> ())
-    func patch (id: String, data: NSDictionary, params: NSDictionary?, complete: @escaping (FeathersServiceModel)->(), incomplete: @escaping (Error) -> ())
-    func remove (id: String, params: NSDictionary?, complete: @escaping ()->(), incomplete: @escaping (Error) -> ())
+    func find (params: NSDictionary?) async throws -> [FeathersServiceModel]
+    func get (id: String, params: NSDictionary?) async throws -> FeathersServiceModel
+    func create (data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel
+    func update (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel
+    func patch (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel
+    func remove (id: String, params: NSDictionary?) async throws
 }
 
 public extension FeathersService {
-    func find(
-        params: NSDictionary? = nil,
-        complete: @escaping ([FeathersServiceModel])->(),
-        incomplete: @escaping (Error) -> ()
-    ) {
-        Feathers
-            .shared
-            .getProvider()
-            .build(
-                method: "GET",
-                service: self.endpoint!,
-                body: nil,
-                params: params,
-                complete: { (data, response) in
-                    do {
-                        let items: NSMutableArray = []
-                        let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        let data = json["data"] as! NSArray
-                        data.forEach { item in
-                            let item = item as! [String:Any]
-                            var model = self.getModel()
-                            model.setId(json: item)
-                            model.populateModel(json: item)
-                            items.add(model)
-                        }
-                        complete(items as! [FeathersServiceModel])
-                    } catch {
-                        throw FeathersJsonError.invalidJSON
-                    }
-                }, incomplete: { error in
-            
-                }
-            )
+    func find(params: NSDictionary? = nil) async throws -> [FeathersServiceModel] {
+        do {
+            let res = try await Feathers.shared.getProvider().build(method: "GET", service: self.endpoint!, body: nil, params: params)
+            let items: NSMutableArray = []
+            let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
+            let data = json["data"] as! NSArray
+            data.forEach { item in
+                let item = item as! [String:Any]
+                var model = self.getModel()
+                model.setId(json: item)
+                model.populateModel(json: item)
+                items.add(model)
+            }
+            return items as! [FeathersServiceModel]
+        } catch {
+            throw FeathersJsonError.invalidJSON
+        }
     }
     
-    func get (
-        id: String,
-        params: NSDictionary? = nil,
-        complete: @escaping (FeathersServiceModel)->(),
-        incomplete: @escaping (Error) -> ()
-    ) {
-        Feathers
-            .shared
-            .getProvider()
-            .build(
-                method: "GET",
-                service: String(format:"%@/%@", self.endpoint!, id),
-                body: nil,
-                params: nil,
-                complete: { (data, response) in
-                    do {
-                        let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.getModel()
-                            model.setId(json: json)
-                            model.populateModel(json: json)
-                        complete(model)
-                    } catch {
-                        throw FeathersJsonError.invalidJSON
-                    }
-                }, incomplete: { error in
-            
-                }
-            )
+    func get (id: String, params: NSDictionary? = nil) async throws -> FeathersServiceModel {
+        let res = try await Feathers.shared.getProvider().build(method: "GET", service: String(format:"%@/%@", self.endpoint!, id), body: nil, params: nil)
+        do {
+            let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
+            var model = self.getModel()
+                model.setId(json: json)
+                model.populateModel(json: json)
+            return model
+        } catch {
+            throw FeathersJsonError.invalidJSON
+        }
     }
     
-    func create (
-        data: NSDictionary,
-        params: NSDictionary?,
-        complete: @escaping (FeathersServiceModel)->(),
-        incomplete: @escaping (Error) -> ()
-    ) {
-        Feathers
-            .shared
-            .getProvider()
-            .build(
-                method: "POST",
-                service: self.endpoint!,
-                body: data,
-                params: params,
-                complete: { (data, response) in
-                    do {
-                        let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.getModel()
-                            model.setId(json: json)
-                            model.populateModel(json: json)
-                        complete(model)
-                    } catch {
-                        throw FeathersJsonError.invalidJSON
-                    }
-                }, incomplete: { error in
-                    incomplete(error)
-                }
-            )
+    func create (data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel {
+        let res = try await Feathers.shared.getProvider().build(method: "POST", service: self.endpoint!, body: nil, params: nil)
+        do {
+            let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
+            var model = self.getModel()
+                model.setId(json: json)
+                model.populateModel(json: json)
+            return model
+        } catch {
+            throw FeathersJsonError.invalidJSON
+        }
     }
     
-    func update (
-        id: String,
-        data: NSDictionary,
-        params: NSDictionary?,
-        complete: @escaping (FeathersServiceModel)->(),
-        incomplete: @escaping (Error) -> ()
-    ) {
-        Feathers
-            .shared
-            .getProvider()
-            .build(
-                method: "PUT",
-                service: String(format:"%@/%@", self.endpoint!, id),
-                body: data,
-                params: params,
-                complete: { (data, response) in
-                    do {
-                        let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.getModel()
-                            model.setId(json: json)
-                            model.populateModel(json: json)
-                        complete(model)
-                    } catch {
-                        throw FeathersJsonError.invalidJSON
-                    }
-                }, incomplete: { error in
-                    incomplete(error)
-                }
-            )
+    func update (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel {
+        let res = try await Feathers.shared.getProvider().build(method: "PUT", service: String(format:"%@/%@", self.endpoint!, id), body: data, params: nil)
+        do {
+            let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
+            var model = self.getModel()
+                model.setId(json: json)
+                model.populateModel(json: json)
+            return model
+        } catch {
+            throw FeathersJsonError.invalidJSON
+        }
     }
     
-    func patch (
-        id: String,
-        data: NSDictionary,
-        params: NSDictionary?,
-        complete: @escaping (FeathersServiceModel)->(),
-        incomplete: @escaping (Error) -> ()
-    )  {
-        Feathers
-            .shared
-            .getProvider()
-            .build(
-                method: "PATCH",
-                service: String(format:"%@/%@", self.endpoint!, id),
-                body: data,
-                params: params,
-                complete: { (data, response) in
-                    do {
-                        let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.getModel()
-                            model.setId(json: json)
-                            model.populateModel(json: json)
-                        complete(model)
-                    } catch {
-                        throw FeathersJsonError.invalidJSON
-                    }
-                }, incomplete: { error in
-                    incomplete(error)
-                }
-            )
+    func patch (id: String, data: NSDictionary, params: NSDictionary?) async throws -> FeathersServiceModel  {
+        let res = try await Feathers.shared.getProvider().build(method: "PATCH", service: String(format:"%@/%@", self.endpoint!, id), body: data, params: nil)
+        do {
+            let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
+            var model = self.getModel()
+                model.setId(json: json)
+                model.populateModel(json: json)
+            return model
+        } catch {
+            throw FeathersJsonError.invalidJSON
+        }
     }
     
-    func remove (
-        id: String,
-        params: NSDictionary?,
-        complete: @escaping ()->(),
-        incomplete: @escaping (Error) -> ()
-    )  {
-        Feathers
-            .shared
-            .getProvider()
-            .build(
-                method: "DELETE",
-                service: String(format:"%@/%@", self.endpoint!, id),
-                body: nil,
-                params: params,
-                complete: { (data, response) in
-                    do {
-                        let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
-                        var model = self.getModel()
-                            model.setId(json: json)
-                            model.populateModel(json: json)
-                        complete()
-                    } catch {
-                        throw FeathersJsonError.invalidJSON
-                    }
-                }, incomplete: { error in
-                    incomplete(error)
-                }
-            )
+    func remove (id: String, params: NSDictionary?) async throws  {
+        try await Feathers.shared.getProvider().build(method: "DELETE", service: String(format:"%@/%@", self.endpoint!, id), body: nil, params: nil)
     }
 }
 

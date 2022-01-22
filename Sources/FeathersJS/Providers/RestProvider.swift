@@ -54,53 +54,51 @@ extension FeathersRestProvider: FeathersProvider {
         self.api = api
     }
     
-    func build (
-        method: String,
-        service: String,
-        body: NSDictionary? = nil,
-        params: NSDictionary? = nil,
-        complete: @escaping (Data, URLResponse) throws -> (),
-        incomplete: @escaping (Error) throws -> ()
-    ) {
-        var qs: [String:Any]? = nil
-        if (params != nil) {
-            if (params!["query"] != nil) {
-                qs = params!["query"] as? [String:String]
+    func build ( method: String, service: String, body: NSDictionary? = nil, params: NSDictionary? = nil ) async throws -> FeathersRestResponse {
+        return try await withCheckedThrowingContinuation { continuation in
+            var qs: [String:Any]? = nil
+            if (params != nil) {
+                if (params!["query"] != nil) {
+                    qs = params!["query"] as? [String:String]
+                }
             }
+            let url = URL(string: service, relativeTo: self.api.baseUrl, parameters: qs)!
+            var request = URLRequest(url: url)
+            request.httpMethod = method
+            if (body != nil) {
+                let bodyData = try? JSONSerialization.data(withJSONObject: body!)
+                request.httpBody = bodyData
+            }
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type") // change as per server requirements
+            request.addValue("application/json", forHTTPHeaderField: "Accept")
+            self.sendRequest(request: request, completionHandler: { result in
+                continuation.resume(with: result)
+            })
         }
-        let url = URL(string: service, relativeTo: self.api.baseUrl, parameters: qs)!
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        if (body != nil) {
-            let bodyData = try? JSONSerialization.data(withJSONObject: body!)
-            request.httpBody = bodyData
-        }
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type") // change as per server requirements
-        request.addValue("application/json", forHTTPHeaderField: "Accept")
-        self.sendRequest(request: request, complete: complete, incomplete: incomplete)
     }
     
     
-    public func authenticateLocal (email: String, password: String, complete: @escaping (Bool) -> ()) {
+    public func authenticateLocal (email: String, password: String) async throws -> Bool {
         let body: NSDictionary = [
             "strategy" : "local",
             "email": email,
             "password": password
         ]
-        self.build(method: "POST", service: "/authentication", body: body, complete: { (data, response) in
-            let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String:Any]
+        do {
+            let res = try await self.build(method: "POST", service: "/authentication", body: body)
+            let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
             self.accessToken = json["accessToken"] as? String ?? ""
             if (!self.isAuthenticated()) {
-                complete(false);
+                    return false
             } else {
-                complete(true);
+                    return true
             }
-        }, incomplete: { error in
-            complete(false)
-        })
+        } catch {
+            return false
+        }
     }
     
-    func sendRequest (request: URLRequest, complete: @escaping (Data, URLResponse) throws -> (), incomplete: @escaping (Error) throws -> ()) {
+    func sendRequest (request: URLRequest, completionHandler: @escaping (Result<FeathersRestResponse, Error>)->()) {
         var request = request
         if (self.isAuthenticated()) {
             request.addValue("Bearer \(self.accessToken)", forHTTPHeaderField: "Authorization")
@@ -109,18 +107,18 @@ extension FeathersRestProvider: FeathersProvider {
         let task = session.dataTask(with: request, completionHandler: { (data, response, error) in
             do {
                 if let error = error {
-                    try incomplete(error)
+                    completionHandler(.failure(error))
                 } else if let data = data {
                     do {
-                        try complete(data, response!)
+                        completionHandler(.success(FeathersRestResponse(data: data, response: response!)))
                     } catch {
-                        try incomplete(error)
+                        completionHandler(.failure(error))
                     }
                 } else {
-                    try incomplete(FeathersRestError.unclassified(message: "An unexpected error occured when trying to access data from the HTTP Request"))
+                    completionHandler(.failure(FeathersRestError.unclassified(message: "An unexpected error occured when trying to access data from the HTTP Request")))
                 }
             } catch {
-                try? incomplete(error)
+                completionHandler(.failure(error))
             }
         })
         
