@@ -59,14 +59,16 @@ import FeathersJS
 struct User: FeathersServiceModel {    
     // Data model defaults, any member of this dict
     // will be stored if returned from the api call
-    var data: NSMutableDictionary? = [
-        "email": "",
-        "firstName": "",
-        "lastName": ""
-    ]
+    override var schema: NSMutableDictionary {
+        return [
+            "email": "",
+            "firstName": "",
+            "lastName": ""
+        ]
+    }
     
     // Getter for the Service
-    func getService () -> FeathersService {
+    override func getService () -> FeathersService {
         return Users()
     }
 }
