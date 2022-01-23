@@ -3,6 +3,9 @@ import UIKit
 import Combine
 
 public protocol FeathersServiceModelProtocol: Identifiable {
+    var schema: NSMutableDictionary { get }
+    var data: NSMutableDictionary { get set }
+    
     func getService () -> FeathersService
     
     func populateModel (json: [String: Any])
@@ -16,12 +19,16 @@ public protocol FeathersServiceModelProtocol: Identifiable {
 }
 
 open class FeathersServiceModel: FeathersServiceModelProtocol {
-    public var id: String?
-    var data: NSMutableDictionary?
-    
-    public init (data: NSMutableDictionary) {
-        self.data = data
+    public init (data: NSMutableDictionary? = nil) {
+        self.data = data ?? self.schema
     }
+    
+    public var id: String?
+    
+    open var schema: NSMutableDictionary {
+        return [:]
+    }
+    public var data: NSMutableDictionary = [:]
     
     open func getService() -> FeathersService {
         return FeathersDefaultService()
@@ -39,20 +46,20 @@ open class FeathersServiceModel: FeathersServiceModelProtocol {
     }
     
     public func set (key: String, val: Any) {
-        if (self.data![key] != nil) {
-            self.data![key] = val
+        if (self.data[key] != nil) {
+            self.data[key] = val
         }
     }
     
     public func get (key: String? = nil) throws -> Any {
         if (key != nil) {
-            if let val = self.data![key!] {
+            if let val = self.data[key!] {
                 return val
             }
             throw FeathersServiceModelError.invalidKey
         }
         
-        return self.data!
+        return self.data
     }
     
     public func save (params: NSDictionary? = nil) async throws -> FeathersServiceModel {
@@ -192,6 +199,6 @@ struct FeathersDefaultService: FeathersService {
     var endpoint: String?
     
     func getModel() -> FeathersServiceModel {
-        return FeathersServiceModel(data: [:])
+        return FeathersServiceModel()
     }
 }
