@@ -2,14 +2,14 @@ import Foundation
 import UIKit
 import Combine
 
-public protocol FeathersServiceModel {
-    var _id: String? { get set }
-    var data: NSMutableDictionary? { get set }
+public protocol FeathersServiceModelProtocol: Identifiable {
+    var schema: NSMutableDictionary { get }
+    var data: NSMutableDictionary { get set }
     
     func getService () -> FeathersService
     
-    mutating func populateModel (json: [String: Any])
-    mutating func setId (json: [String: Any])
+    func populateModel (json: [String: Any])
+    func setId (json: [String: Any])
     
     func set (key: String, val: Any)
     func get (key: String?) throws -> Any
@@ -18,57 +18,73 @@ public protocol FeathersServiceModel {
     func remove (params: NSDictionary?) async throws
 }
 
-public extension FeathersServiceModel {
-    mutating func populateModel (json: [String: Any]) {
+open class FeathersServiceModel: FeathersServiceModelProtocol {
+    public init (data: NSMutableDictionary? = nil) {
+        self.data = data ?? self.schema
+    }
+    
+    public var id: String?
+    
+    open var schema: NSMutableDictionary {
+        return [:]
+    }
+    public var data: NSMutableDictionary = [:]
+    
+    open func getService() -> FeathersService {
+        return FeathersDefaultService()
+    }
+
+    public func populateModel (json: [String: Any]) {
         for (key, val) in json {
             self.set(key: key, val: val)
         }
         return
     }
     
-    mutating func setId (json: [String: Any]) {
-        self._id = (json["_id"] as! String)
+    public func setId (json: [String: Any]) {
+        self.id = (json["_id"] as! String)
     }
     
-    func set (key: String, val: Any) {
-        if (self.data![key] != nil) {
-            self.data![key] = val
+    public func set (key: String, val: Any) {
+        if (self.data[key] != nil) {
+            self.data[key] = val
         }
     }
     
-    func get (key: String? = nil) throws -> Any {
+    public func get (key: String? = nil) throws -> Any {
         if (key != nil) {
-            if let val = self.data![key!] {
+            if let val = self.data[key!] {
                 return val
             }
             throw FeathersServiceModelError.invalidKey
         }
         
-        return self.data!
+        return self.data
     }
     
-    func save (params: NSDictionary? = nil) async throws -> FeathersServiceModel {
-        return try await self.getService().patch(
-            id: self._id!,
-            data: try! self.get() as! NSDictionary,
-            params: params
-        )
+    public func save (params: NSDictionary? = nil) async throws -> FeathersServiceModel {
+        if (self.id == nil) {
+            return try await self.getService().create(
+                data: try! self.get() as! NSDictionary,
+                params: params
+            )
+        } else {
+            return try await self.getService().patch(
+                id: self.id!,
+                data: try! self.get() as! NSDictionary,
+                params: params
+            )
+        }
     }
     
-    func remove (params: NSDictionary? = nil) async throws {
+    public func remove (params: NSDictionary? = nil) async throws {
+        if (id == nil) {
+            throw FeathersServiceModelError.missingPropertyId
+        }
         return try await self.getService().remove(
-            id: self._id!,
+            id: self.id!,
             params: params
         )
-    }
-}
-
-struct FeathersDefaultServiceModel: FeathersServiceModel {
-    var _id: String? = nil
-    public var data: NSMutableDictionary? = [:]
-    
-    func getService() -> FeathersService {
-        return FeathersDefaultService()
     }
 }
 
@@ -87,27 +103,6 @@ public struct FeathersLocalAuthConfig {
     public init (email: String, password: String) {
         self.email = email
         self.password = password
-    }
-}
-
-public struct FeathersAuthResponse {
-    public var _id: String?
-    public var data: NSMutableDictionary? = [
-        "accessToken": "",
-        "authentication": [:],
-        "user": [:]
-    ]
-    
-    public func getService() -> FeathersService {
-        return FeathersDefaultService()
-    }
-}
-
-extension FeathersAuthResponse: FeathersServiceModel {
-    init (json: [String: Any]) {
-        self.data!["accessToken"] = json["accessToken"]
-        self.data!["authentication"] = json["authentication"]
-        self.data!["user"] = json["user"]
     }
 }
 
@@ -132,9 +127,9 @@ public extension FeathersService {
             let data = json["data"] as! NSArray
             data.forEach { item in
                 let item = item as! [String:Any]
-                var model = self.getModel()
-                model.setId(json: item)
-                model.populateModel(json: item)
+                let model = self.getModel()
+                    model.setId(json: item)
+                    model.populateModel(json: item)
                 items.add(model)
             }
             return items as! [FeathersServiceModel]
@@ -147,7 +142,7 @@ public extension FeathersService {
         let res = try await Feathers.shared.getProvider().build(method: "GET", service: String(format:"%@/%@", self.endpoint!, id), body: nil, params: nil)
         do {
             let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
-            var model = self.getModel()
+            let model = self.getModel()
                 model.setId(json: json)
                 model.populateModel(json: json)
             return model
@@ -160,7 +155,7 @@ public extension FeathersService {
         let res = try await Feathers.shared.getProvider().build(method: "POST", service: self.endpoint!, body: nil, params: nil)
         do {
             let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
-            var model = self.getModel()
+            let model = self.getModel()
                 model.setId(json: json)
                 model.populateModel(json: json)
             return model
@@ -173,7 +168,7 @@ public extension FeathersService {
         let res = try await Feathers.shared.getProvider().build(method: "PUT", service: String(format:"%@/%@", self.endpoint!, id), body: data, params: nil)
         do {
             let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
-            var model = self.getModel()
+            let model = self.getModel()
                 model.setId(json: json)
                 model.populateModel(json: json)
             return model
@@ -186,7 +181,7 @@ public extension FeathersService {
         let res = try await Feathers.shared.getProvider().build(method: "PATCH", service: String(format:"%@/%@", self.endpoint!, id), body: data, params: nil)
         do {
             let json = try JSONSerialization.jsonObject(with: res.data, options: []) as! [String:Any]
-            var model = self.getModel()
+            let model = self.getModel()
                 model.setId(json: json)
                 model.populateModel(json: json)
             return model
@@ -196,7 +191,7 @@ public extension FeathersService {
     }
     
     func remove (id: String, params: NSDictionary?) async throws  {
-        try await Feathers.shared.getProvider().build(method: "DELETE", service: String(format:"%@/%@", self.endpoint!, id), body: nil, params: nil)
+        _ = try await Feathers.shared.getProvider().build(method: "DELETE", service: String(format:"%@/%@", self.endpoint!, id), body: nil, params: nil)
     }
 }
 
@@ -204,6 +199,6 @@ struct FeathersDefaultService: FeathersService {
     var endpoint: String?
     
     func getModel() -> FeathersServiceModel {
-        return FeathersDefaultServiceModel()
+        return FeathersServiceModel()
     }
 }

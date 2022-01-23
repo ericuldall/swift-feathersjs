@@ -13,6 +13,7 @@ enum FeathersJsonError: Error {
 
 enum FeathersServiceModelError: Error {
     case invalidKey
+    case missingPropertyId
 }
 
 enum FeathersRestError: Error {
